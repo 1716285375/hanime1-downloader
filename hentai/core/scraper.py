@@ -3,12 +3,22 @@ Async scraper using Playwright for hanime1.me
 """
 import asyncio
 import re
+import json
+import time
+import hashlib
+from pathlib import Path
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from playwright.async_api import async_playwright, Browser, Page, BrowserContext
 from loguru import logger
+import aiohttp
+import os
 
-from config import scraper_config, download_config
+from config import scraper_config, download_config, DATA_DIR
+
+# Cache configuration
+CACHE_FILE = DATA_DIR / "search_cache.json"
+CACHE_TTL = 86400  # 24 hours
 
 
 @dataclass
@@ -358,12 +368,102 @@ class VideoScraper:
             await page.close()
 
 
+class SearchCache:
+    """Simple file-based cache for search results"""
+    
+    def __init__(self):
+        self.cache = {}
+        self.load()
+        
+    def load(self):
+        """Load cache from file"""
+        try:
+            if CACHE_FILE.exists():
+                with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                    self.cache = json.load(f)
+            else:
+                self.cache = {}
+        except Exception as e:
+            logger.error(f"Error loading cache: {e}")
+            self.cache = {}
+            
+    def save(self):
+        """Save cache to file"""
+        try:
+            CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(self.cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving cache: {e}")
+            
+    def get(self, url: str) -> Optional[List[dict]]:
+        """Get cached videos for a URL"""
+        key = self._get_key(url)
+        if key in self.cache:
+            entry = self.cache[key]
+            if time.time() - entry.get('timestamp', 0) < CACHE_TTL:
+                return entry['data']
+            else:
+                del self.cache[key]
+        return None
+        
+    def set(self, url: str, videos: List[VideoInfo]):
+        """Cache videos for a URL"""
+        key = self._get_key(url)
+        data = [asdict(v) for v in videos]
+        self.cache[key] = {
+            'timestamp': time.time(),
+            'data': data,
+            'url': url
+        }
+        self.save()
+        
+    def _get_key(self, url: str) -> str:
+        """Generate cache key from URL"""
+        return hashlib.md5(url.encode()).hexdigest()
+
+
 class SearchScraper:
     """Scraper for search/browse pages"""
     
     def __init__(self):
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
+        self.cache = SearchCache()
+        self.thumbnails_dir = DATA_DIR / "thumbnails"
+        self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+    async def _download_thumbnail(self, session: aiohttp.ClientSession, url: str) -> str:
+        """
+        Download thumbnail and return local API path.
+        If download fails, return original URL.
+        """
+        if not url or not url.startswith('http'):
+            return url
+            
+        try:
+            # Generate filename from hash
+            ext = os.path.splitext(url.split('?')[0])[1] or '.jpg'
+            if len(ext) > 5: ext = '.jpg'
+            
+            filename = hashlib.md5(url.encode()).hexdigest() + ext
+            local_path = self.thumbnails_dir / filename
+            
+            # Check if already exists
+            if local_path.exists():
+                return f"/api/thumbnails/{filename}"
+                
+            # Download
+            async with session.get(url) as response:
+                if response.status == 200:
+                    content = await response.read()
+                    with open(local_path, 'wb') as f:
+                        f.write(content)
+                    return f"/api/thumbnails/{filename}"
+                return url
+        except Exception as e:
+            logger.warning(f"Failed to download thumbnail {url}: {e}")
+            return url
         
     async def __aenter__(self):
         await self.start()
@@ -411,6 +511,11 @@ class SearchScraper:
         Returns:
             List of VideoInfo objects
         """
+        # Check cache first
+        cached_data = self.cache.get(search_url)
+        if cached_data:
+            return [VideoInfo(**d) for d in cached_data]
+            
         if not self.context:
             await self.start()
             
@@ -421,54 +526,94 @@ class SearchScraper:
             logger.info(f"Searching: {search_url}")
             await page.goto(search_url, wait_until='domcontentloaded', timeout=scraper_config.timeout)
             
+            # Wait for video container to load
+            await asyncio.sleep(2)
+            
             # Scroll to load lazy images
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(1)
             
-            # Find video container
-            container = await page.query_selector('div.home-rows-videos-wrapper, div[class*="video-list"], div[class*="videos"]')
-            if not container:
-                logger.error("Could not find video container")
-                return videos
-                
-            # Find all video links
-            video_links = await container.query_selector_all('a[href*="/watch/"], a[href*="video"]')
+            # Find all video links in the content container
+            # Use a more generic selector to support all layouts (Grid, List, etc.)
+            # Target links inside #home-rows-wrapper containing /watch?v=
+            selector = '#home-rows-wrapper a[href*="/watch?v="]'
+            video_links = await page.query_selector_all(selector)
             
-            for i, link in enumerate(video_links):
-                if i == 0:
-                    # Skip first element (often ad)
-                    continue
-                    
+            logger.info(f"Found {len(video_links)} video link elements using {selector}")
+            
+            for link in video_links:
                 try:
                     href = await link.get_attribute('href')
                     if not href:
+                        continue
+                    
+                    # Filter out ads and non-content links
+                    if 'hanime1.me/watch' not in href and not href.startswith('/watch'):
                         continue
                         
                     # Make absolute URL
                     if href.startswith('/'):
                         href = f"https://hanime1.me{href}"
                         
-                    # Get thumbnail
+                    # Get thumbnail from img tag
                     img = await link.query_selector('img')
                     thumbnail_url = await img.get_attribute('src') if img else ""
                     
                     # Get title
-                    title_elem = await link.query_selector('div, span, p')
-                    title = await title_elem.inner_text() if title_elem else f"Video {i}"
-                    title = title.strip()
+                    # Try common title classes
+                    title = "Unknown"
+                    title_elem = await link.query_selector('.home-rows-videos-title') # Grid
+                    if not title_elem:
+                        title_elem = await link.query_selector('.title') # List/Horizontal
+                    if not title_elem:
+                        title_elem = await link.query_selector('.video-title') # Generic fallback
+                        
+                    if title_elem:
+                        title = await title_elem.inner_text()
+                        title = title.strip()
+                    else:
+                        # Extract video ID from URL as fallback
+                        match = re.search(r'v=(\d+)', href)
+                        title = f"Video {match.group(1)}" if match else "Unknown"
                     
+                    # Avoid duplicates if any
+                    if any(v.url == href for v in videos):
+                        continue
+                        
                     videos.append(VideoInfo(
                         title=title,
                         url=href,
                         thumbnail_url=thumbnail_url,
-                        resolutions={}  # Will be populated when needed
+                        resolutions={}
                     ))
                     
                 except Exception as e:
-                    logger.warning(f"Error parsing video element {i}: {e}")
+                    logger.warning(f"Error parsing video element: {e}")
                     continue
+            
+            logger.success(f"Found {len(videos)} valid videos on page")
+            
+            # Download thumbnails in parallel
+            if videos:
+                logger.info("Caching thumbnails...")
+                async with aiohttp.ClientSession() as session:
+                    tasks = []
+                    for video in videos:
+                        if video.thumbnail_url and video.thumbnail_url.startswith('http'):
+                            tasks.append(self._download_thumbnail(session, video.thumbnail_url))
+                        else:
+                            tasks.append(asyncio.sleep(0, result=video.thumbnail_url))
                     
-            logger.success(f"Found {len(videos)} videos")
+                    cached_urls = await asyncio.gather(*tasks)
+                    
+                    # Update video objects
+                    for i, cached_url in enumerate(cached_urls):
+                        videos[i].thumbnail_url = cached_url
+
+            # Save to cache
+            if videos:
+                self.cache.set(search_url, videos)
+                
             return videos
             
         except Exception as e:
@@ -476,3 +621,80 @@ class SearchScraper:
             return videos
         finally:
             await page.close()
+    
+    async def search_videos_paginated(
+        self, 
+        base_url: str, 
+        start_page: int = 1, 
+        end_page: Optional[int] = None
+    ) -> Tuple[List[VideoInfo], int]:
+        """
+        Search for videos across multiple pages
+        
+        Args:
+            base_url: Base search URL (e.g., https://hanime1.me/search?genre=裏番)
+            start_page: Starting page number (default: 1)
+            end_page: Ending page number (default: None, will auto-detect)
+            
+        Returns:
+            Tuple of (List of VideoInfo objects, total_pages)
+        """
+        if not self.context:
+            await self.start()
+            
+        all_videos = []
+        total_pages = 0
+        
+        # First, detect total pages if not provided
+        if end_page is None:
+            page = await self.context.new_page()
+            try:
+                logger.info(f"Detecting total pages from: {base_url}")
+                await page.goto(base_url, wait_until='domcontentloaded', timeout=scraper_config.timeout)
+                await asyncio.sleep(2)
+                
+                # Find pagination elements
+                # Look for the last page number link
+                pagination_links = await page.query_selector_all('ul.pagination li.page-item a.page-link')
+                
+                max_page = 1
+                for link in pagination_links:
+                    text = await link.inner_text()
+                    text = text.strip()
+                    if text.isdigit():
+                        max_page = max(max_page, int(text))
+                
+                total_pages = max_page
+                end_page = max_page
+                logger.info(f"Detected {total_pages} total pages")
+                
+            except Exception as e:
+                logger.error(f"Error detecting total pages: {e}")
+                end_page = start_page  # Fallback to single page
+                total_pages = 1
+            finally:
+                await page.close()
+        else:
+            total_pages = end_page
+        
+        # Now fetch videos from each page
+        for page_num in range(start_page, end_page + 1):
+            # Construct page URL
+            separator = '&' if '?' in base_url else '?'
+            page_url = f"{base_url}{separator}page={page_num}"
+            
+            logger.info(f"Fetching page {page_num}/{end_page}")
+            
+            try:
+                page_videos = await self.search_videos(page_url)
+                all_videos.extend(page_videos)
+                
+                # Small delay between pages to be polite
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.error(f"Error fetching page {page_num}: {e}")
+                continue
+        
+        logger.success(f"Fetched {len(all_videos)} total videos from {end_page - start_page + 1} pages")
+        return all_videos, total_pages

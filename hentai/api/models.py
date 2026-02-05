@@ -80,3 +80,44 @@ class ErrorResponse(BaseModel):
     """Error response"""
     error: str
     detail: Optional[str] = None
+
+
+class PaginatedSearchRequest(BaseModel):
+    """Paginated search request"""
+    search_url: str = Field(..., description="Base search URL")
+    start_page: int = Field(1, ge=1, description="Starting page number")
+    end_page: Optional[int] = Field(None, description="Ending page number (auto-detect if None)")
+
+
+class PaginatedSearchResult(BaseModel):
+    """Paginated search results"""
+    videos: List[VideoInfoResponse]
+    total_pages: int
+    total_videos: int
+
+
+class BatchDownloadRequest(BaseModel):
+    """Batch download request"""
+    videos: List[DownloadRequest] = Field(..., description="List of videos to download")
+
+
+class BatchDownloadResponse(BaseModel):
+    """Batch download response"""
+    task_ids: List[str]
+    success_count: int
+    failed_count: int
+    failed_urls: List[str] = Field(default_factory=list)
+
+
+class BulkUrlsRequest(BaseModel):
+    """Bulk URLs import request"""
+    urls: List[str] = Field(..., description="List of video page URLs")
+    resolution: str = Field("1080p", description="Download resolution for all videos")
+
+
+class BulkUrlsResponse(BaseModel):
+    """Bulk URLs import response"""
+    task_ids: List[str]
+    success_count: int
+    failed_count: int
+    failed_urls: List[str] = Field(default_factory=list)

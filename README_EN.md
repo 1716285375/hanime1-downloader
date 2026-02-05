@@ -11,15 +11,15 @@
 
 A modern asynchronous video downloader for [hanime1.me](https://hanime1.me) with a beautiful WebUI.
 
-![App Screenshot](docs/app.png)
+![App Screenshot](docs/app-en.png)
 
 </div>
 
-## ✨ Features
-
 - **🚀 High Performance**: Built with Playwright + httpx + asyncio for maximum speed.
-- **🎨 Modern WebUI**: Visual management panel with real-time monitoring, resume support, and concurrency control.
-- **🛠️ Powerful**: Supports multiple resolutions (360p-1080p) and real-time WebSocket updates.
+- **🎨 Modern UI**: Brand new React + TailwindCSS interface, supports Dark Mode and i18n (English/Chinese).
+- **🔍 Powerful Search**: Support Keyword/Genre search, Pagination (Auto detect total pages), and Batch Selection.
+- **📦 Batch Import**: Support pasting multiple URLs or uploading `.txt` files for batch downloading.
+- **🛠️ Feature Rich**: Multi-resolution support (360p-1080p), Local Cover Cache, Resume capabiltiy.
 
 ## 📦 Quick Start
 
@@ -48,23 +48,29 @@ Automatically installs uv, Playwright, and all dependencies.
 
 Access WebUI at: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-### 3. 🎨 Frontend Development (Optional)
+### 3. Development Mode
 
-If you want to modify the UI:
+#### Backend
+```bash
+# Start Backend API (Port 8000)
+uv run python hentai/main.py
+```
 
-1. **Install Dependencies**:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. **Start Dev Server**:
-   ```bash
-   npm run dev
-   ```
-3. **Build**:
-   ```bash
-   npm run build
-   ```
+#### Frontend
+```bash
+cd frontend
+# Install dependencies
+npm install
+# Start Dev Server (Port 5173)
+npm run dev
+```
+
+### 4. Build for Production
+```bash
+cd frontend
+npm run build
+# After build, backend will automatically serve static files from frontend/dist
+```
 
 ## 🔧 Configuration (`hentai/config.py`)
 
@@ -76,8 +82,16 @@ If you want to modify the UI:
 
 - `hentai/main.py`: Entry point
 - `hentai/core/`: Core logic (Scraper, Downloader)
-- `hentai/web/`: Frontend assets (Static)
 - `frontend/`: Frontend source (React/Vite)
+
+## ☕ Buy me a coffee
+
+If you find this project helpful, you can buy the author a coffee ☕
+
+<div align="center">
+  <img src="docs/wx-pay.png" height="350" style="margin-right: 20px" />
+  <img src="docs/zfb-pay.png" height="350" />
+</div>
 
 ## 📝 License
 

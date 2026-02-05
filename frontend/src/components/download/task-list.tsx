@@ -1,10 +1,12 @@
 import { useTasks } from '@/hooks/use-tasks'
+import { useLanguage } from '@/contexts/language-context'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { TaskCard } from './task-card'
 import { AlertCircle, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function TaskList() {
+    const { t } = useLanguage()
     // Initialize WebSocket connection
     useWebSocket()
 
@@ -13,7 +15,7 @@ export function TaskList() {
     if (isLoading && !tasks) {
         return (
             <div className="flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-                Loading tasks...
+                {t('common.loading')}
             </div>
         )
     }
@@ -23,9 +25,9 @@ export function TaskList() {
             <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive">
                 <div className="flex items-center gap-2">
                     <AlertCircle className="h-5 w-5" />
-                    <span>Failed to load tasks</span>
+                    <span>{t('common.error')}</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+                <Button variant="outline" size="sm" onClick={() => refetch()}>{t('common.retry')}</Button>
             </div>
         )
     }
@@ -34,7 +36,7 @@ export function TaskList() {
         return (
             <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
                 <Inbox className="h-10 w-10 opacity-20" />
-                <p>No downloads yet</p>
+                <p>{t('tasks.noDownloads')}</p>
             </div>
         )
     }
@@ -62,8 +64,10 @@ export function TaskList() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold tracking-tight">Downloads</h2>
-                <span className="text-sm text-muted-foreground">{tasks.length} tasks</span>
+                <h2 className="text-lg font-semibold tracking-tight">{t('tasks.title')}</h2>
+                <span className="text-sm text-muted-foreground">
+                    {t('tasks.count', { count: tasks.length })}
+                </span>
             </div>
             <div className="grid gap-4">
                 {sortedTasks.map((task) => (

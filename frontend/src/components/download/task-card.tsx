@@ -15,12 +15,14 @@ import { cn, formatBytes, formatSpeed, estimateTimeRemaining } from '@/lib/utils
 import { useCancelTask, useDeleteTask } from '@/hooks/use-tasks'
 import type { DownloadTask, TaskStatus } from '@/types/api'
 import { toast } from 'sonner'
+import { useLanguage } from '@/contexts/language-context'
 
 interface TaskCardProps {
     task: DownloadTask
 }
 
 export function TaskCard({ task }: TaskCardProps) {
+    const { t } = useLanguage()
     const cancelTask = useCancelTask()
     const deleteTask = useDeleteTask()
 
@@ -62,15 +64,15 @@ export function TaskCard({ task }: TaskCardProps) {
 
     const handleCancel = () => {
         cancelTask.mutate(task.id, {
-            onSuccess: () => toast.success('Task cancelled'),
-            onError: () => toast.error('Failed to cancel task')
+            onSuccess: () => toast.success(t('common.success')),
+            onError: () => toast.error(t('common.error'))
         })
     }
 
     const handleDelete = () => {
         deleteTask.mutate(task.id, {
-            onSuccess: () => toast.success('Task deleted'),
-            onError: () => toast.error('Failed to delete task')
+            onSuccess: () => toast.success(t('common.success')),
+            onError: () => toast.error(t('common.error'))
         })
     }
 
@@ -107,7 +109,7 @@ export function TaskCard({ task }: TaskCardProps) {
                             </h3>
                             <p className={cn("flex items-center gap-2 text-xs", getStatusColor(task.status))}>
                                 {getStatusIcon(task.status)}
-                                <span className="capitalize">{task.status}</span>
+                                <span className="capitalize">{t(`tasks.status.${task.status}` as any)}</span>
                                 {isFailed && task.error_message && (
                                     <span className="text-muted-foreground">- {task.error_message}</span>
                                 )}
@@ -116,12 +118,12 @@ export function TaskCard({ task }: TaskCardProps) {
 
                         <div className="flex items-center gap-1">
                             {isActive && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancel} title="Cancel">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancel} title={t('common.cancel')}>
                                     <XCircle className="h-4 w-4" />
                                 </Button>
                             )}
                             {!isActive && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={handleDelete} title="Delete">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={handleDelete} title={t('common.delete')}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             )}
@@ -143,11 +145,11 @@ export function TaskCard({ task }: TaskCardProps) {
                             {isActive && (
                                 <>
                                     <span>{formatSpeed(task.speed)}</span>
-                                    <span>ETA: {estimateTimeRemaining(task.downloaded_bytes, task.total_bytes, task.speed)}</span>
+                                    <span>{t('tasks.eta')}{estimateTimeRemaining(task.downloaded_bytes, task.total_bytes, task.speed)}</span>
                                 </>
                             )}
                             {isCompleted && (
-                                <span className="text-green-600">Completed at {new Date(task.completed_at).toLocaleString()}</span>
+                                <span className="text-green-600">{t('tasks.completedAt')}{new Date(task.completed_at).toLocaleString()}</span>
                             )}
                         </div>
                     </div>

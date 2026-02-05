@@ -11,15 +11,15 @@
 
 现代化异步视频下载器，支持 [hanime1.me](https://hanime1.me)，带可视化 WebUI。
 
-![App Screenshot](docs/app.png)
+![App Screenshot](docs/app-zh.png)
 
 </div>
 
-## ✨ 特性
-
 - **🚀 高性能**: 基于 Playwright + httpx + asyncio 异步架构，极致速度。
-- **🎨 WebUI**: 现代化可视管理面板，支持实时监控、断点续传、并发控制。
-- **🛠️ 功能强大**: 支持多分辨率 (360p-1080p)、WebSocket 实时推送。
+- **🎨 现代化 UI**: 全新 React + TailwindCSS 界面，支持深色模式、多语言 (中/英)。
+- **🔍 强大搜索**: 支持关键字/类别搜索、分页解析 (自动识别总页数)、批量选择下载。
+- **📦 批量导入**: 支持批量粘贴 URL 或上传 `.txt` 文件导入下载任务。
+- **🛠️ 功能丰富**: 支持多分辨率 (360p-1080p)、本地封面缓存、断点续传。
 
 ## 📦 快速开始
 
@@ -48,23 +48,29 @@
 
 启动后访问: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-### 3. 🎨 前端开发 (可选)
+### 3. dev 开发模式
 
-如果需要修改界面：
+#### 后端
+```bash
+# 启动后端 API 服务 (端口 8000)
+uv run python hentai/main.py
+```
 
-1. **安装依赖**:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. **启动开发**:
-   ```bash
-   npm run dev
-   ```
-3. **构建**:
-   ```bash
-   npm run build
-   ```
+#### 前端
+```bash
+cd frontend
+# 安装依赖
+npm install
+# 启动开发服务器 (端口 5173)
+npm run dev
+```
+
+### 4. 构建发布
+```bash
+cd frontend
+npm run build
+# 构建完成后，后端会自动服务 frontend/dist 目录下的静态文件
+```
 
 ## 🔧 配置 (`hentai/config.py`)
 
@@ -76,8 +82,16 @@
 
 - `hentai/main.py`: 入口文件
 - `hentai/core/`: 核心逻辑 (爬虫、下载器)
-- `hentai/web/`: 前端构建资源
 - `frontend/`: 前端源代码 (React/Vite)
+
+## ☕ Buy me a coffee
+
+如果您觉得这个项目对您有帮助，可以请作者喝杯咖啡 ☕
+
+<div align="center">
+  <img src="docs/wx-pay.png" height="350" style="margin-right: 20px" />
+  <img src="docs/zfb-pay.png" height="350" />
+</div>
 
 ## 📝 许可证
 

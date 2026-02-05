@@ -11,6 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 VIDEO_DIR = ROOT_DIR / 'downloads'
 LOG_DIR = ROOT_DIR / 'logs'
 DATABASE_DIR = ROOT_DIR / 'database'
+DATA_DIR = DATABASE_DIR  # Alias for DATA_DIR used in scraper
 TASKS_DB = DATABASE_DIR / 'tasks.json'
 
 # Ensure directories exist
@@ -65,6 +66,31 @@ class WebUIConfig:
     allow_headers: list = None
     
     def __post_init__(self):
+        # Override from environment variables
+        import os
+        
+        env_host = os.getenv("HANIME_HOST")
+        if env_host:
+            self.host = env_host
+            
+        env_port = os.getenv("HANIME_PORT")
+        if env_port:
+            try:
+                self.port = int(env_port)
+            except ValueError:
+                pass
+                
+        env_reload = os.getenv("HANIME_RELOAD")
+        if env_reload:
+            self.reload = env_reload.lower() in ("true", "1", "yes")
+            
+        # Mode setting (shortcut for reload/log_level)
+        env_mode = os.getenv("HANIME_MODE")
+        if env_mode and env_mode.lower() == "dev":
+            self.reload = True
+            if self.log_level == "info": # Only override if default
+                self.log_level = "debug"
+
         if self.allow_origins is None:
             self.allow_origins = ["*"]
         if self.allow_methods is None:

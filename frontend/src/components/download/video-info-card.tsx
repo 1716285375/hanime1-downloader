@@ -5,6 +5,7 @@ import { useCreateDownload } from '@/hooks/use-tasks'
 import type { VideoInfo } from '@/types/api'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
 
 interface VideoInfoCardProps {
     videoInfo: VideoInfo
@@ -13,6 +14,7 @@ interface VideoInfoCardProps {
 }
 
 export function VideoInfoCard({ videoInfo, pageUrl, onClear }: VideoInfoCardProps) {
+    const { t } = useLanguage()
     const [resolution, setResolution] = useState(
         Object.keys(videoInfo.resolutions)[0] || '1080p'
     )
@@ -29,11 +31,11 @@ export function VideoInfoCard({ videoInfo, pageUrl, onClear }: VideoInfoCardProp
             },
             {
                 onSuccess: () => {
-                    toast.success('Download started')
+                    toast.success(t('download.started'))
                     onClear()
                 },
                 onError: () => {
-                    toast.error('Failed to start download')
+                    toast.error(t('download.failed'))
                 },
             }
         )
@@ -56,7 +58,7 @@ export function VideoInfoCard({ videoInfo, pageUrl, onClear }: VideoInfoCardProp
                         />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center bg-muted">
-                            <span className="text-muted-foreground">No Thumbnail</span>
+                            <span className="text-muted-foreground">{t('common.noThumbnail')}</span>
                         </div>
                     )}
                 </div>
@@ -93,7 +95,7 @@ export function VideoInfoCard({ videoInfo, pageUrl, onClear }: VideoInfoCardProp
 
                         <Button onClick={handleDownload} disabled={createDownload.isPending}>
                             <Download className="mr-2 h-4 w-4" />
-                            {createDownload.isPending ? 'Starting...' : 'Download'}
+                            {createDownload.isPending ? t('common.loading') : t('download.downloadBtn')}
                         </Button>
                     </div>
                 </div>

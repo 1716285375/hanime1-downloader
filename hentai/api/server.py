@@ -21,7 +21,13 @@ from api.models import (
     StatisticsResponse,
     SearchRequest,
     SearchResult,
-    ErrorResponse
+    ErrorResponse,
+    PaginatedSearchRequest,
+    PaginatedSearchResult,
+    BatchDownloadRequest,
+    BatchDownloadResponse,
+    BulkUrlsRequest,
+    BulkUrlsResponse
 )
 from api.websocket import manager
 
@@ -119,6 +125,13 @@ async def websocket_endpoint(websocket: WebSocket):
 # In production, serve from ../frontend/dist
 # In development, this might not be used if using Vite proxy
 # Static file mounting moved to the end of file to prevent shadowing API routes
+
+
+# Mount thumbnails directory
+THUMBNAILS_DIR = VIDEO_DIR.parent / "database" / "thumbnails"
+THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/api/thumbnails", StaticFiles(directory=str(THUMBNAILS_DIR)), name="thumbnails")
 
 
 @app.get("/api/video-info")
@@ -351,7 +364,7 @@ async def search_videos(request: SearchRequest) -> SearchResult:
             )
             
     except Exception as e:
-        logger.error(f"Error searching videos: {e}")
+        logger.exception(f"Error searching videos: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -396,6 +409,135 @@ async def proxy_image(url: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/search/paginated")
+async def search_videos_paginated(request: PaginatedSearchRequest) -> PaginatedSearchResult:
+    """
+    Search for videos across multiple pages
+    
+    Args:
+        request: Paginated search request with URL and page range
+        
+    Returns:
+        List of found videos and pagination info
+    """
+    try:
+        async with SearchScraper() as scraper:
+            videos, total_pages = await scraper.search_videos_paginated(
+                request.search_url,
+                request.start_page,
+                request.end_page
+            )
+            
+            results = [
+                VideoInfoResponse(
+                    title=video.title,
+                    url=video.url,
+                    thumbnail_url=video.thumbnail_url,
+                    resolutions=video.resolutions
+                )
+                for video in videos
+            ]
+            
+            return PaginatedSearchResult(
+                videos=results,
+                total_pages=total_pages,
+                total_videos=len(results)
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in paginated search: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/batch-download")
+async def batch_download(request: BatchDownloadRequest) -> BatchDownloadResponse:
+    """
+    Create multiple download tasks at once
+    
+    Args:
+        request: Batch download request with list of videos
+        
+    Returns:
+        Batch download response with task IDs and success/failure counts
+    """
+    task_ids = []
+    failed_urls = []
+    success_count = 0
+    failed_count = 0
+    
+    for video_request in request.videos:
+        try:
+            # Create download task (reusing existing logic)
+            task_response = await create_download(video_request)
+            task_ids.append(task_response.id)
+            success_count += 1
+            
+        except Exception as e:
+            logger.error(f"Error creating batch download task for {video_request.page_url}: {e}")
+            failed_urls.append(video_request.page_url)
+            failed_count += 1
+    
+    logger.info(f"Batch download: {success_count} succeeded, {failed_count} failed")
+    
+    return BatchDownloadResponse(
+        task_ids=task_ids,
+        success_count=success_count,
+        failed_count=failed_count,
+        failed_urls=failed_urls
+    )
+
+
+@app.post("/api/bulk-urls")
+async def bulk_urls_import(request: BulkUrlsRequest) -> BulkUrlsResponse:
+    """
+    Import and download from a list of video URLs
+    
+    Args:
+        request: Bulk URLs request with list of video URLs and resolution
+        
+    Returns:
+        Bulk URLs response with task IDs and success/failure counts
+    """
+    task_ids = []
+    failed_urls = []
+    success_count = 0
+    failed_count = 0
+    
+    for url in request.urls:
+        try:
+            # Validate URL format
+            if 'hanime1.me/watch' not in url and not url.startswith('/watch'):
+                logger.warning(f"Invalid video URL: {url}")
+                failed_urls.append(url)
+                failed_count += 1
+                continue
+            
+            # Create download request
+            download_request = DownloadRequest(
+                page_url=url,
+                resolution=request.resolution
+            )
+            
+            # Create download task
+            task_response = await create_download(download_request)
+            task_ids.append(task_response.id)
+            success_count += 1
+            
+        except Exception as e:
+            logger.error(f"Error creating task for URL {url}: {e}")
+            failed_urls.append(url)
+            failed_count += 1
+    
+    logger.info(f"Bulk URLs import: {success_count} succeeded, {failed_count} failed")
+    
+    return BulkUrlsResponse(
+        task_ids=task_ids,
+        success_count=success_count,
+        failed_count=failed_count,
+        failed_urls=failed_urls
+    )
+
+
 
 
 # Mount static files (Frontend)
@@ -417,6 +559,11 @@ if frontend_dir.exists():
         if full_path.startswith("api/") or full_path.startswith("ws"):
             raise HTTPException(status_code=404, detail="Not Found")
             
+        # Check if the file exists in frontend_dir (e.g. logo.png, favicon.ico)
+        possible_file = frontend_dir / full_path
+        if possible_file is not None and possible_file.is_file():
+            return FileResponse(str(possible_file))
+
         # Serve index.html for all other routes (SPA fallback)
         return FileResponse(str(frontend_dir / "index.html"))
     

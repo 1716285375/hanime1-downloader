@@ -34,6 +34,7 @@ logs/
 
 # Project specific
 hentai/downloads/
+hentai/database/
 hentai/database/*.json
 !hentai/database/.gitkeep
 hentai/logs/
@@ -44,3 +45,7 @@ hentai/debug_scraper_fail.png
 node_modules/
 frontend/dist/
 frontend/node_modules/
+
+# html
+hentai/*html
+hentai/debug*.*
