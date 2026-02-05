@@ -89,9 +89,29 @@ npm run build
 If you find this project helpful, you can buy the author a coffee ☕
 
 <div align="center">
-  <img src="docs/wx-pay.png" height="350" style="margin-right: 20px" />
-  <img src="docs/zfb-pay.png" height="350" />
+  <table>
+    <tr>
+      <td align="center" width="200">
+        <img src="docs/wx-pay.png" height="300" />
+        <br />
+        <strong>WeChat Pay</strong>
+      </td>
+      <td align="center" width="200">
+        <img src="docs/zfb-pay.png" height="300" />
+        <br />
+        <strong>Alipay</strong>
+      </td>
+    </tr>
+  </table>
 </div>
+
+## ⚠️ Disclaimer
+
+This project is for technical learning and exchange purposes only; please do not use it for illegal purposes.
+1. The functions provided by this project are only for personal backup or learning research.
+2. The user assumes all consequences arising from the use of this project; the author does not assume any legal responsibility.
+3. Please comply with the laws and regulations of your country or region and respect copyright.
+4. If this project infringes on your rights, please contact the author to remove it.
 
 ## 📝 License
 

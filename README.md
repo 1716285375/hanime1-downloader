@@ -89,9 +89,29 @@ npm run build
 如果您觉得这个项目对您有帮助，可以请作者喝杯咖啡 ☕
 
 <div align="center">
-  <img src="docs/wx-pay.png" height="350" style="margin-right: 20px" />
-  <img src="docs/zfb-pay.png" height="350" />
+  <table>
+    <tr>
+      <td align="center" width="200">
+        <img src="docs/wx-pay.png" height="300" />
+        <br />
+        <strong>微信支付</strong>
+      </td>
+      <td align="center" width="200">
+        <img src="docs/zfb-pay.png" height="300" />
+        <br />
+        <strong>支付宝</strong>
+      </td>
+    </tr>
+  </table>
 </div>
+
+## ⚠️ 免责声明
+
+本项目仅供技术学习和交流使用，请勿用于非法用途。
+1. 本项目所提供的功能仅用于个人备份或学习研究。
+2. 使用本项目所产生的一切后果由使用者自行承担，作者不承担任何法律责任。
+3. 请遵守所在国家或地区的法律法规，尊重版权。
+4. 如果本项目侵犯了您的权益，请联系作者删除。
 
 ## 📝 许可证
 
