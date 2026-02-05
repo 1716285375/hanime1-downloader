@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+logs/
+*.log
+
+# PyInstaller
+*.manifest
+*.spec
+
+# VS Code
+.vscode/
+
+# Project specific
+hentai/downloads/
+hentai/database/*.json
+!hentai/database/.gitkeep
+hentai/logs/
+hentai/debug_page.html
+hentai/debug_scraper_fail.png
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
