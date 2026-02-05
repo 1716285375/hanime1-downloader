@@ -37,7 +37,25 @@
 
 启动后访问: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-## � 配置 (hentai/config.py)
+### 3. 🎨 前端开发 (可选)
+
+如果需要修改界面：
+
+1. **安装依赖**:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. **启动开发**:
+   ```bash
+   npm run dev
+   ```
+3. **构建**:
+   ```bash
+   npm run build
+   ```
+
+## 🔧 配置 (hentai/config.py)
 
 - `ScraperConfig`: Headless 模式 (`headless=True`/`False`)
 - `DownloadConfig`: 并发数 (`max_concurrent_downloads`)、代理 (`use_proxy`)
